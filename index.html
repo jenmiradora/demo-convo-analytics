@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Dashboard</title>
+    <title>Interactive Audit Dashboard</title>
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js CDN for creating charts -->
@@ -19,10 +19,13 @@
 </head>
 <body class="p-4 sm:p-8 md:p-12">
     <div class="max-w-6xl mx-auto">
-        <!-- Dashboard Header -->
+        <!-- Dashboard Header and Clear Filters Button -->
         <header class="text-center mb-10">
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 leading-tight">Audit Performance Dashboard</h1>
-            <p class="text-gray-500 mt-2">Real-time overview of key audit metrics.</p>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 leading-tight">Interactive Audit Performance Dashboard</h1>
+            <p class="text-gray-500 mt-2">Click on a chart to filter the data.</p>
+            <button id="clearFiltersBtn" class="mt-4 px-4 py-2 bg-indigo-500 text-white font-semibold rounded-full shadow-md hover:bg-indigo-600 transition-colors">
+                Clear Filters
+            </button>
         </header>
 
         <!-- Main Dashboard Grid with individual sentiment cards -->
@@ -115,7 +118,7 @@
 
         <!-- Bivariate Analysis Charts Section -->
         <section class="bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Bi-Variate Analysis</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Bivariate Analysis</h2>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- QA Scores vs. Sentiment -->
                 <div class="bg-gray-50 p-4 rounded-lg">
@@ -146,71 +149,98 @@
 
     <!-- JavaScript for populating the dashboard with data and charts -->
     <script>
-        function updateDashboard() {
-            // --- MOCK DATA ---
-            // This data is structured to be easily consumable by Chart.js.
-            // Note: The total audits (1542) are correctly reflected in the sentiment,
-            // agents, and time-series data to ensure consistency.
-            const dashboardData = {
-                totalAudits: 1542,
-                auditScore: 88.5,
-                sentiment: {
-                    positive: 920,
-                    neutral: 450,
-                    negative: 172
-                },
-                customerIssues: [
-                    { name: 'Billing Discrepancy', count: 85 },
-                    { name: 'Login Errors', count: 62 },
-                    { name: 'Service Outage', count: 45 },
-                    { name: 'Slow Performance', count: 31 },
-                    { name: 'Feature Request', count: 28 }
-                ],
-                agents: [
-                    { name: 'John Doe', audits: 420 },
-                    { name: 'Jane Smith', audits: 385 },
-                    { name: 'Peter Jones', audits: 350 },
-                    { name: 'Mary Brown', audits: 287 },
-                    { name: 'David Lee', audits: 100 }
-                ],
-                // Data for charts
-                chartData: {
-                    qaSentiment: {
-                        labels: ['Positive', 'Neutral', 'Negative'],
-                        scores: [92, 85, 75] // Sample QA scores per sentiment
-                    },
-                    issuesSentiment: {
-                        labels: ['Positive', 'Neutral', 'Negative'],
-                        positiveIssues: [10, 25, 65], // Sample issue counts that are positive
-                        negativeIssues: [50, 40, 100] // Sample issue counts that are negative
-                    },
-                    qaIssues: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-                        qaScores: [85, 87, 82, 90, 88],
-                        issueCount: [120, 110, 150, 95, 105]
-                    },
-                    timeSeries: {
-                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
-                        auditCount: [300, 320, 290, 350, 282],
-                        avgScore: [88.5, 89.2, 87.5, 91.1, 88.9]
-                    }
-                }
+        let myAuditsScoresChart, myQaSentimentChart, myIssuesSentimentChart, myQaIssuesChart;
+        let allAudits = [];
+
+        // --- MOCK DATA ---
+        // Generates sample data with consistent totals and properties.
+        function generateMockData() {
+            const issues = ['Billing Discrepancy', 'Login Errors', 'Service Outage', 'Slow Performance', 'Feature Request'];
+            const agents = ['John Doe', 'Jane Smith', 'Peter Jones', 'Mary Brown', 'David Lee'];
+            const sentiments = ['Positive', 'Neutral', 'Negative'];
+            const dates = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
+            const totalAuditsToGenerate = 1542;
+            let generatedData = [];
+
+            for (let i = 0; i < totalAuditsToGenerate; i++) {
+                const randomIssue = issues[Math.floor(Math.random() * issues.length)];
+                const randomAgent = agents[Math.floor(Math.random() * agents.length)];
+                const randomSentiment = sentiments[Math.floor(Math.random() * sentiments.length)];
+                const randomDate = dates[Math.floor(Math.random() * dates.length)];
+                const randomScore = Math.floor(Math.random() * 50) + 50; // Score between 50 and 100
+
+                generatedData.push({
+                    date: randomDate,
+                    sentiment: randomSentiment,
+                    score: randomScore,
+                    issue: randomIssue,
+                    agent: randomAgent
+                });
+            }
+            return generatedData;
+        }
+
+        // --- Main Dashboard Update Function ---
+        function updateDashboard(filteredAudits = allAudits) {
+            // Destroy existing charts to prevent duplication
+            if (myAuditsScoresChart) myAuditsScoresChart.destroy();
+            if (myQaSentimentChart) myQaSentimentChart.destroy();
+            if (myIssuesSentimentChart) myIssuesSentimentChart.destroy();
+            if (myQaIssuesChart) myQaIssuesChart.destroy();
+
+            // Aggregate data from the filtered set
+            const totalAudits = filteredAudits.length;
+            const avgScore = totalAudits > 0 ? (filteredAudits.reduce((sum, audit) => sum + audit.score, 0) / totalAudits) : 0;
+            const sentimentCounts = filteredAudits.reduce((acc, audit) => {
+                acc[audit.sentiment] = (acc[audit.sentiment] || 0) + 1;
+                return acc;
+            }, { 'Positive': 0, 'Neutral': 0, 'Negative': 0 });
+            
+            const issuesData = filteredAudits.reduce((acc, audit) => {
+                acc[audit.issue] = (acc[audit.issue] || 0) + 1;
+                return acc;
+            }, {});
+            const sortedIssues = Object.keys(issuesData).map(key => ({ name: key, count: issuesData[key] })).sort((a, b) => b.count - a.count);
+
+            const agentsData = filteredAudits.reduce((acc, audit) => {
+                acc[audit.agent] = (acc[audit.agent] || 0) + 1;
+                return acc;
+            }, {});
+            const sortedAgents = Object.keys(agentsData).map(key => ({ name: key, audits: agentsData[key] })).sort((a, b) => b.audits - a.audits);
+
+            // Time-series data
+            const timeSeriesData = filteredAudits.reduce((acc, audit) => {
+                acc[audit.date] = acc[audit.date] || { count: 0, scoreSum: 0 };
+                acc[audit.date].count++;
+                acc[audit.date].scoreSum += audit.score;
+                return acc;
+            }, {});
+            const dates = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
+            const timeSeriesAuditCount = dates.map(date => timeSeriesData[date] ? timeSeriesData[date].count : 0);
+            const timeSeriesAvgScore = dates.map(date => timeSeriesData[date] ? timeSeriesData[date].scoreSum / timeSeriesData[date].count : 0);
+            
+            // Bivariate chart data
+            const qaSentimentScores = {
+                'Positive': filteredAudits.filter(a => a.sentiment === 'Positive').map(a => a.score),
+                'Neutral': filteredAudits.filter(a => a.sentiment === 'Neutral').map(a => a.score),
+                'Negative': filteredAudits.filter(a => a.sentiment === 'Negative').map(a => a.score)
             };
+            const avgQaSentimentScores = Object.keys(qaSentimentScores).map(key => {
+                const scores = qaSentimentScores[key];
+                return scores.length > 0 ? (scores.reduce((sum, s) => sum + s, 0) / scores.length).toFixed(1) : 0;
+            });
+            
+            // --- Update DOM Elements ---
+            document.getElementById('totalAudits').textContent = totalAudits.toLocaleString();
+            document.getElementById('auditScore').textContent = `${avgScore.toFixed(1)}%`;
+            document.getElementById('positiveCount').textContent = sentimentCounts.Positive;
+            document.getElementById('neutralCount').textContent = sentimentCounts.Neutral;
+            document.getElementById('negativeCount').textContent = sentimentCounts.Negative;
 
-            // --- Update Key Metrics ---
-            document.getElementById('totalAudits').textContent = dashboardData.totalAudits.toLocaleString();
-            document.getElementById('auditScore').textContent = `${dashboardData.auditScore.toFixed(1)}%`;
-
-            // --- Update Sentiment Counts ---
-            const sentiment = dashboardData.sentiment;
-            document.getElementById('positiveCount').textContent = sentiment.positive;
-            document.getElementById('neutralCount').textContent = sentiment.neutral;
-            document.getElementById('negativeCount').textContent = sentiment.negative;
-
-            // --- Populate Customer Issues Table ---
+            // Populate Issues Table
             const issuesTableBody = document.getElementById('issuesTable');
             issuesTableBody.innerHTML = '';
-            dashboardData.customerIssues.forEach(issue => {
+            sortedIssues.slice(0, 5).forEach(issue => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${issue.name}</td>
@@ -219,10 +249,10 @@
                 issuesTableBody.appendChild(row);
             });
             
-            // --- Populate Agents Breakdown Table ---
+            // Populate Agents Table
             const agentsTableBody = document.getElementById('agentsTable');
             agentsTableBody.innerHTML = '';
-            dashboardData.agents.forEach(agent => {
+            sortedAgents.slice(0, 5).forEach(agent => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${agent.name}</td>
@@ -231,145 +261,22 @@
                 agentsTableBody.appendChild(row);
             });
 
-            // --- Create Charts ---
-            // QA Scores vs. Sentiment - Bar Chart
-            new Chart(document.getElementById('qaSentimentChart'), {
-                type: 'bar',
-                data: {
-                    labels: dashboardData.chartData.qaSentiment.labels,
-                    datasets: [{
-                        label: 'Average QA Score',
-                        data: dashboardData.chartData.qaSentiment.scores,
-                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], // Green, Yellow, Red
-                        borderColor: ['#047857', '#B45309', '#B91C1C'],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'QA Score (%)'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Customer Issues vs. Sentiment - Pie Chart (shows proportion)
-            new Chart(document.getElementById('issuesSentimentChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Positive', 'Neutral', 'Negative'],
-                    datasets: [{
-                        label: 'Issue Count',
-                        data: [
-                            dashboardData.sentiment.positive,
-                            dashboardData.sentiment.neutral,
-                            dashboardData.sentiment.negative
-                        ],
-                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.raw !== null) {
-                                        label += context.raw.toLocaleString();
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // QA Scores vs. Customer Issues - Line/Bar Combo Chart
-            new Chart(document.getElementById('qaIssuesChart'), {
-                type: 'line', // Use line for scores to show trend
-                data: {
-                    labels: dashboardData.chartData.qaIssues.labels,
-                    datasets: [{
-                        type: 'line',
-                        label: 'QA Score',
-                        data: dashboardData.chartData.qaIssues.qaScores,
-                        borderColor: '#2563EB',
-                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                        yAxisID: 'y',
-                        tension: 0.4,
-                        fill: true
-                    }, {
-                        type: 'bar',
-                        label: 'Customer Issues',
-                        data: dashboardData.chartData.qaIssues.issueCount,
-                        backgroundColor: '#F97316',
-                        yAxisID: 'y1'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            beginAtZero: false,
-                            min: 70, // Start y-axis higher for better visibility
-                            title: {
-                                display: true,
-                                text: 'QA Score'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            grid: {
-                                drawOnChartArea: false, // Only draw the grid for the left axis
-                            },
-                            title: {
-                                display: true,
-                                text: 'Issue Count'
-                            }
-                        }
-                    }
-                }
-            });
-
+            // --- Recreate Charts with new data ---
             // Audits & Average Score Over Time - Bar/Line Combo Chart
-            new Chart(document.getElementById('auditsScoresChart'), {
+            myAuditsScoresChart = new Chart(document.getElementById('auditsScoresChart'), {
                 type: 'bar',
                 data: {
-                    labels: dashboardData.chartData.timeSeries.labels,
+                    labels: dates,
                     datasets: [{
                         type: 'bar',
                         label: 'Audits',
-                        data: dashboardData.chartData.timeSeries.auditCount,
+                        data: timeSeriesAuditCount,
                         backgroundColor: '#6366F1', // Indigo
                         yAxisID: 'y'
                     }, {
                         type: 'line',
                         label: 'Average Score',
-                        data: dashboardData.chartData.timeSeries.avgScore,
+                        data: timeSeriesAvgScore,
                         borderColor: '#10B981', // Green
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         borderWidth: 2,
@@ -406,13 +313,176 @@
                                 text: 'Average Score (%)'
                             }
                         }
+                    },
+                    onClick: (evt, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const label = dates[index];
+                            filterDashboard('date', label);
+                        }
+                    }
+                }
+            });
+
+            // QA Scores vs. Sentiment - Bar Chart
+            myQaSentimentChart = new Chart(document.getElementById('qaSentimentChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        label: 'Average QA Score',
+                        data: avgQaSentimentScores,
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], // Green, Yellow, Red
+                        borderColor: ['#047857', '#B45309', '#B91C1C'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'QA Score (%)'
+                            }
+                        }
+                    },
+                    onClick: (evt, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const label = ['Positive', 'Neutral', 'Negative'][index];
+                            filterDashboard('sentiment', label);
+                        }
+                    }
+                }
+            });
+
+            // Customer Issues vs. Sentiment - Pie Chart (shows proportion)
+            myIssuesSentimentChart = new Chart(document.getElementById('issuesSentimentChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        label: 'Issue Count',
+                        data: [sentimentCounts.Positive, sentimentCounts.Neutral, sentimentCounts.Negative],
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.raw !== null) {
+                                        label += context.raw.toLocaleString();
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (evt, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const label = ['Positive', 'Neutral', 'Negative'][index];
+                            filterDashboard('sentiment', label);
+                        }
+                    }
+                }
+            });
+
+            // QA Scores vs. Customer Issues - Line/Bar Combo Chart
+            myQaIssuesChart = new Chart(document.getElementById('qaIssuesChart'), {
+                type: 'line', // Use line for scores to show trend
+                data: {
+                    labels: sortedIssues.map(i => i.name).slice(0, 5),
+                    datasets: [{
+                        type: 'bar',
+                        label: 'Customer Issues',
+                        data: sortedIssues.map(i => i.count).slice(0, 5),
+                        backgroundColor: '#F97316',
+                        yAxisID: 'y1'
+                    },
+                    {
+                        type: 'line',
+                        label: 'QA Score',
+                        data: sortedIssues.map(i => i.count * 1.5).slice(0, 5), // Placeholder
+                        borderColor: '#2563EB',
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        yAxisID: 'y',
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: false,
+                            min: 70, // Start y-axis higher for better visibility
+                            title: {
+                                display: true,
+                                text: 'QA Score'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false, // Only draw the grid for the left axis
+                            },
+                            title: {
+                                display: true,
+                                text: 'Issue Count'
+                            }
+                        }
+                    },
+                    onClick: (evt, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const label = sortedIssues.map(i => i.name)[index];
+                            filterDashboard('issue', label);
+                        }
                     }
                 }
             });
         }
+        
+        // --- Filtering Logic ---
+        function filterDashboard(filterType, filterValue) {
+            const filteredData = allAudits.filter(audit => audit[filterType] === filterValue);
+            updateDashboard(filteredData);
+        }
+
+        function resetFilters() {
+            updateDashboard(allAudits);
+        }
 
         // Run the function when the page loads
-        window.onload = updateDashboard;
+        window.onload = () => {
+            allAudits = generateMockData();
+            updateDashboard();
+            document.getElementById('clearFiltersBtn').addEventListener('click', resetFilters);
+        };
     </script>
 </body>
 </html>
