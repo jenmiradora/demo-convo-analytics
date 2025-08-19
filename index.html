@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Dashboard</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for creating charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom font and basic body styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 md:p-12">
+    <div class="max-w-6xl mx-auto">
+        <!-- Dashboard Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 leading-tight">Audit Performance Dashboard</h1>
+            <p class="text-gray-500 mt-2">Real-time overview of key audit metrics.</p>
+        </header>
+
+        <!-- Main Dashboard Grid with individual sentiment cards -->
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Audits Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center">
+                <div class="text-sm font-semibold text-gray-500 mb-2">Total Audits</div>
+                <div id="totalAudits" class="text-4xl font-bold text-indigo-600"></div>
+            </div>
+
+            <!-- Overall Score Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center">
+                <div class="text-sm font-semibold text-gray-500 mb-2">Average Score</div>
+                <div id="auditScore" class="text-4xl font-bold text-green-600"></div>
+            </div>
+
+            <!-- Positive Sentiment Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center">
+                <div class="text-sm font-semibold text-gray-500 mb-2">Positive Sentiment</div>
+                <div id="positiveCount" class="text-4xl font-bold text-green-500"></div>
+            </div>
+
+            <!-- Neutral Sentiment Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center">
+                <div class="text-sm font-semibold text-gray-500 mb-2">Neutral Sentiment</div>
+                <div id="neutralCount" class="text-4xl font-bold text-yellow-500"></div>
+            </div>
+
+            <!-- Negative Sentiment Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center justify-center">
+                <div class="text-sm font-semibold text-gray-500 mb-2">Negative Sentiment</div>
+                <div id="negativeCount" class="text-4xl font-bold text-red-500"></div>
+            </div>
+        </main>
+
+        <!-- Time-Series Analysis Chart Section -->
+        <section class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Time-Series Analysis</h2>
+            <div class="relative h-96">
+                <canvas id="auditsScoresChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Two-column section for Issues and Agents -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Customer Issues Section -->
+            <section class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Top Customer Issues</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Issue
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Count
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="issuesTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <!-- Agents Breakdown Section -->
+            <section class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Agents Breakdown</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Agent Name
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Audits
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="agentsTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Bivariate Analysis Charts Section -->
+        <section class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Bi-Variate Analysis</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- QA Scores vs. Sentiment -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 text-center mb-4">QA Scores vs. Sentiment</h3>
+                    <div class="relative h-64">
+                        <canvas id="qaSentimentChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Customer Issues vs. Sentiment -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 text-center mb-4">Customer Issues vs. Sentiment</h3>
+                    <div class="relative h-64">
+                        <canvas id="issuesSentimentChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- QA Scores vs. Customer Issues -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 text-center mb-4">QA Scores vs. Customer Issues</h3>
+                    <div class="relative h-64">
+                        <canvas id="qaIssuesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- JavaScript for populating the dashboard with data and charts -->
+    <script>
+        function updateDashboard() {
+            // --- MOCK DATA ---
+            // This data is structured to be easily consumable by Chart.js.
+            // Note: The total audits (1542) are correctly reflected in the sentiment,
+            // agents, and time-series data to ensure consistency.
+            const dashboardData = {
+                totalAudits: 1542,
+                auditScore: 88.5,
+                sentiment: {
+                    positive: 920,
+                    neutral: 450,
+                    negative: 172
+                },
+                customerIssues: [
+                    { name: 'Billing Discrepancy', count: 85 },
+                    { name: 'Login Errors', count: 62 },
+                    { name: 'Service Outage', count: 45 },
+                    { name: 'Slow Performance', count: 31 },
+                    { name: 'Feature Request', count: 28 }
+                ],
+                agents: [
+                    { name: 'John Doe', audits: 420 },
+                    { name: 'Jane Smith', audits: 385 },
+                    { name: 'Peter Jones', audits: 350 },
+                    { name: 'Mary Brown', audits: 287 },
+                    { name: 'David Lee', audits: 100 }
+                ],
+                // Data for charts
+                chartData: {
+                    qaSentiment: {
+                        labels: ['Positive', 'Neutral', 'Negative'],
+                        scores: [92, 85, 75] // Sample QA scores per sentiment
+                    },
+                    issuesSentiment: {
+                        labels: ['Positive', 'Neutral', 'Negative'],
+                        positiveIssues: [10, 25, 65], // Sample issue counts that are positive
+                        negativeIssues: [50, 40, 100] // Sample issue counts that are negative
+                    },
+                    qaIssues: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                        qaScores: [85, 87, 82, 90, 88],
+                        issueCount: [120, 110, 150, 95, 105]
+                    },
+                    timeSeries: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+                        auditCount: [300, 320, 290, 350, 282],
+                        avgScore: [88.5, 89.2, 87.5, 91.1, 88.9]
+                    }
+                }
+            };
+
+            // --- Update Key Metrics ---
+            document.getElementById('totalAudits').textContent = dashboardData.totalAudits.toLocaleString();
+            document.getElementById('auditScore').textContent = `${dashboardData.auditScore.toFixed(1)}%`;
+
+            // --- Update Sentiment Counts ---
+            const sentiment = dashboardData.sentiment;
+            document.getElementById('positiveCount').textContent = sentiment.positive;
+            document.getElementById('neutralCount').textContent = sentiment.neutral;
+            document.getElementById('negativeCount').textContent = sentiment.negative;
+
+            // --- Populate Customer Issues Table ---
+            const issuesTableBody = document.getElementById('issuesTable');
+            issuesTableBody.innerHTML = '';
+            dashboardData.customerIssues.forEach(issue => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${issue.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${issue.count}</td>
+                `;
+                issuesTableBody.appendChild(row);
+            });
+            
+            // --- Populate Agents Breakdown Table ---
+            const agentsTableBody = document.getElementById('agentsTable');
+            agentsTableBody.innerHTML = '';
+            dashboardData.agents.forEach(agent => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${agent.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${agent.audits}</td>
+                `;
+                agentsTableBody.appendChild(row);
+            });
+
+            // --- Create Charts ---
+            // QA Scores vs. Sentiment - Bar Chart
+            new Chart(document.getElementById('qaSentimentChart'), {
+                type: 'bar',
+                data: {
+                    labels: dashboardData.chartData.qaSentiment.labels,
+                    datasets: [{
+                        label: 'Average QA Score',
+                        data: dashboardData.chartData.qaSentiment.scores,
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], // Green, Yellow, Red
+                        borderColor: ['#047857', '#B45309', '#B91C1C'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'QA Score (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Customer Issues vs. Sentiment - Pie Chart (shows proportion)
+            new Chart(document.getElementById('issuesSentimentChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        label: 'Issue Count',
+                        data: [
+                            dashboardData.sentiment.positive,
+                            dashboardData.sentiment.neutral,
+                            dashboardData.sentiment.negative
+                        ],
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.raw !== null) {
+                                        label += context.raw.toLocaleString();
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // QA Scores vs. Customer Issues - Line/Bar Combo Chart
+            new Chart(document.getElementById('qaIssuesChart'), {
+                type: 'line', // Use line for scores to show trend
+                data: {
+                    labels: dashboardData.chartData.qaIssues.labels,
+                    datasets: [{
+                        type: 'line',
+                        label: 'QA Score',
+                        data: dashboardData.chartData.qaIssues.qaScores,
+                        borderColor: '#2563EB',
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        yAxisID: 'y',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        type: 'bar',
+                        label: 'Customer Issues',
+                        data: dashboardData.chartData.qaIssues.issueCount,
+                        backgroundColor: '#F97316',
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: false,
+                            min: 70, // Start y-axis higher for better visibility
+                            title: {
+                                display: true,
+                                text: 'QA Score'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false, // Only draw the grid for the left axis
+                            },
+                            title: {
+                                display: true,
+                                text: 'Issue Count'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Audits & Average Score Over Time - Bar/Line Combo Chart
+            new Chart(document.getElementById('auditsScoresChart'), {
+                type: 'bar',
+                data: {
+                    labels: dashboardData.chartData.timeSeries.labels,
+                    datasets: [{
+                        type: 'bar',
+                        label: 'Audits',
+                        data: dashboardData.chartData.timeSeries.auditCount,
+                        backgroundColor: '#6366F1', // Indigo
+                        yAxisID: 'y'
+                    }, {
+                        type: 'line',
+                        label: 'Average Score',
+                        data: dashboardData.chartData.timeSeries.avgScore,
+                        borderColor: '#10B981', // Green
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderWidth: 2,
+                        yAxisID: 'y1',
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Audits'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            title: {
+                                display: true,
+                                text: 'Average Score (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Run the function when the page loads
+        window.onload = updateDashboard;
+    </script>
+</body>
+</html>
